@@ -6,7 +6,13 @@ import {
   type ImportMap,
   type StoreState,
 } from '@vue/repl'
-import { objectOmit } from '@vueuse/core'
+import { objectOmit, debouncedWatch } from '@vueuse/core'
+import { format as prettierFormat } from 'prettier/standalone'
+import * as prettierPluginEstree from "prettier/plugins/estree";
+import * as parserBabel from "prettier/parser-babel";
+import * as parserHtml from "prettier/parser-html";
+import * as parserPostCSS from "prettier/parser-postcss";
+import * as prettier from "prettier/standalone";
 import { IS_DEV } from '@/constants'
 import {
   genCdnLink,
@@ -149,6 +155,22 @@ export const useStore = (initial: Initial) => {
       .replace('#STYLE#', style)
       .replace('#DARKSTYLE#', darkStyle)
   }
+  async function generateFormatCode(code: string) {
+    try {
+      console.log('passe here')
+    return await prettierFormat(code, {
+      //vueIndentScriptAndStyle: true,
+      plugins: [prettierPluginEstree, parserBabel, parserHtml, parserPostCSS],
+      semi: false,
+      singleQuote: true,
+      parser: 'vue',
+    })
+
+    } catch (e) {
+      console.warn('huh', e)
+    throw e
+    }
+  }
   function init() {
     watchEffect(() => {
       compileFile(store, store.activeFile).then((errs) => (store.errors = errs))
@@ -231,9 +253,24 @@ export const useStore = (initial: Initial) => {
     }
   }
 
+  const nextFormat = ref('')
+  const canFormat = computed(() => nextFormat.value === store.activeFile.code)
+
+  debouncedWatch(() => store.activeFile.code, async (code) => {
+    //console.log(code)
+    nextFormat.value = await generateFormatCode(code).then(val => val).catch(() => code)
+    console.log(nextFormat.value)
+  }, { debouce: 500 })
+
+  function formatCurrentFile() {
+    store.activeFile.code = nextFormat.value
+  }
+
   const utils = {
     versions,
     pr,
+    formatCurrentFile,
+    canFormat,
     setVersion,
     toggleNightly,
     serialize,
