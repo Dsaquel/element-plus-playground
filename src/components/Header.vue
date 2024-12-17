@@ -97,6 +97,8 @@ function refreshView() {
     </div>
 
     <div flex="~ gap-2" items-center>
+      <el-button size="small" :disabled="store.canFormat" @click="store.formatCurrentFile">format</el-button>
+
       <div
         v-for="(v, key) of versions"
         :key="key"
